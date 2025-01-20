@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "crsf.h"
 
+#if defined (CONFIG_IDF_TARGET_ESP32)
 #define RXD2 16
 #define TXD2 17
 #define SBUS_BUFFER_SIZE 25
@@ -12,6 +13,21 @@ int aileronsPin = 12;
 int elevatorPin = 13;
 int throttlePin = 14;
 int rudderPin = 15;
+#elif defined (CONFIG_IDF_TARGET_ESP32C3)
+#define Serial2 Serial1
+#define RXD2 RX
+#define TXD2 TX
+#define SBUS_BUFFER_SIZE 25
+uint8_t _rcs_buf[25] {};
+uint16_t _raw_rc_values[RC_INPUT_MAX_CHANNELS] {};
+uint16_t _raw_rc_count{};
+
+int aileronsPin = 2;
+int elevatorPin = 3;
+int throttlePin = 4;
+int rudderPin = 5;
+int relayPin = 6;
+#endif
 
 int aileronsPWMChannel = 1;
 int elevatorPWMChannel = 2;
@@ -35,7 +51,16 @@ void SetServoPos(float percent, int pwmChannel)
 
 void setup() {
   // Note the format for setting a serial port is as follows: Serial2.begin(baud-rate, protocol, RX pin, TX pin);
+#if defined (CONFIG_IDF_TARGET_ESP32)
   Serial.begin(460800);
+#elif defined (CONFIG_IDF_TARGET_ESP32C3)
+  Serial.begin(115200);
+  pinMode(relayPin, OUTPUT);
+  digitalWrite(relayPin, 1);
+
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, 1); // Low enable
+#endif
   //Serial1.begin(9600, SERIAL_8N1, RXD2, TXD2);
   Serial2.begin(420000, SERIAL_8N1, RXD2, TXD2);
   Serial.println("Serial Txd is on pin: "+String(TX));
@@ -80,6 +105,18 @@ void loop() { //Choose Serial1 or Serial2 as required
       SetServoPos(elevatorMapped, elevatorPWMChannel);
       SetServoPos(throttleMapped, throttlePWMChannel);
       SetServoPos(rudderMapped, rudderPWMChannel);
+#if defined (CONFIG_IDF_TARGET_ESP32C3)
+      if(_raw_rc_values[0] >= 2000)
+        digitalWrite(relayPin, 0);
+      else
+        digitalWrite(relayPin, 1);
+
+      if(_raw_rc_values[0] >= 2000)
+        digitalWrite(LED_BUILTIN, 0);
+      else
+        digitalWrite(LED_BUILTIN, 1);
+      
+#endif
     }
   }
 }
